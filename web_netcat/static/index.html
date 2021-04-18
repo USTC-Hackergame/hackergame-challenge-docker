@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminal</title>
+    <link rel="stylesheet" href="/js/xterm/css/xterm.css" />
+    <script src="/js/xterm/lib/xterm.js"></script>
+    <script src="/js/xterm-addon-attach/lib/xterm-addon-attach.js"></script>
+    <script src="/js/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <style>
+      #terminal {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script>
+      const term = new Terminal();
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(document.getElementById("terminal"));
+      fitAddon.fit();
+      window.addEventListener('resize', function(event) {
+        fitAddon.fit();
+      });
+      var firstmsg = true;
+      const socket = new WebSocket(
+        location.origin.replace(/^http/, "ws") + "/shell"
+      );
+      const attachAddon = new AttachAddon.AttachAddon(socket);
+      term.loadAddon(attachAddon);
+      socket.onclose = event => {
+        term.write("\nConnection closed");
+      };
+      socket.onmessage = event => {
+        if (firstmsg) {
+          firstmsg = false;
+          let token = new URLSearchParams(window.location.search).get("token");
+          window.history.replaceState({}, null, '/');
+          if (token) {
+            localStorage.setItem('token', token);
+          } else {
+            token = localStorage.getItem('token');
+          }
+          if (token) socket.send(token + "\n");
+        }
+      };
+      term.focus();
+    </script>
+  </body>
+</html>

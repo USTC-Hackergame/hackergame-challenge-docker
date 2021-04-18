@@ -1,0 +1,10 @@
+version: '2'
+services:
+  web:
+    build: .
+    ports:
+      - ${web_port}:3000
+    environment:
+      - nc_host=${nc_host}
+      - nc_port=${nc_port}
+    restart: always

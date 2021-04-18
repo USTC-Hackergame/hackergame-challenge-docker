@@ -1,0 +1,11 @@
+service ctf
+{
+    server = /usr/bin/python3
+    server_args = -u /front.py
+    port = 2333
+    protocol = tcp
+    type = UNLISTED
+    user = root
+    wait = no
+    flags = NODELAY
+}
