@@ -32,7 +32,7 @@
 
 示例题目在 [example](example) 目录中，其中的 [example/docker-compose.yml](example/docker-compose.yml) 中引用了以上两个目录中的内容。你可以把 example 目录复制多份为不同的名字，它们在被导入到 Hackergame 平台后会显示为多道题目。
 
-题目是 Docker 化的，注意每次运行题目 Docker 时**只启动一个题目的实例，通过标准输入输出交互，你的题目不需要监听端口，也不需要做任何资源限制。**参见 [example/Dockerfile](example/Dockerfile) 和 [example/example.py](example/example.py)。
+题目是 Docker 化的，注意每次运行题目 Docker 时 **只启动一个题目的实例，通过标准输入输出交互，你的题目不需要监听端口，也不需要做任何资源限制。** 参见 [example/Dockerfile](example/Dockerfile) 和 [example/example.py](example/example.py)。
 
 你需要修改 [example/.env](example/.env) 文件，针对题目的情况进行配置，包括 nc 的端口（`port`）、网页终端的端口（`web_port`）、运行时间和资源限制、flag 文件位置、动态 flag 规则、题目的容器名称等。动态 flag 的生成方法可以由你自己决定，可以使用类似 `'flag{prefix_' + sha256('secret'+token)[:10] + '}'` 的方案，示例中使用了 Python 的 f-string。对于多个 flag 的情况，`flag_path` 中路径和 `flag_rule` 中 Python 表达式都用 `,` 分隔即可。容器名称（`challenge_docker_name`）是 docker-compose 自动命名的，请设置为目录名 + "_challenge"。对于每一个连接，如果 Token 合法并且连接频率没有超过限制，那么你的题目容器会以指定的资源限制启动，动态生成的 flag 会被挂载到指定的路径，选手的 TCP 连接将会被连接到容器的标准输入输出上。如果你的题目需要获得用户 Token，直接读取 `hackergame_token` 环境变量即可。
 
