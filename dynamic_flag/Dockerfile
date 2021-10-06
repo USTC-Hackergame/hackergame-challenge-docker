@@ -1,4 +1,4 @@
-FROM ustclug/debian:10
+FROM debian:11
 RUN apt update && apt -y upgrade && \
     apt install -y xinetd python3-openssl docker.io && \
     rm -rf /var/lib/apt/lists/*
