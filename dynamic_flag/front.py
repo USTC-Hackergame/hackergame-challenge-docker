@@ -20,7 +20,7 @@ mem_limit = os.environ["hackergame_mem_limit"]
 flag_path = os.environ["hackergame_flag_path"]
 flag_rule = os.environ["hackergame_flag_rule"]
 challenge_docker_name = os.environ["hackergame_challenge_docker_name"]
-readonly = int(os.environ.get("hackergame_readonly", "1"))
+read_only = int(os.environ.get("hackergame_read_only", "1"))
 
 with open("cert.pem") as f:
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
@@ -130,7 +130,7 @@ def create_docker(flag_files, id):
         f"-e hackergame_token=$hackergame_token "
     )
 
-    if readonly:
+    if read_only:
         cmd += "--read-only "
 
     if challenge_docker_name.endswith("_challenge"):
