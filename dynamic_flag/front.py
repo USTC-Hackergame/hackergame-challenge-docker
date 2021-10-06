@@ -142,11 +142,15 @@ def create_docker(flag_files, id):
     child_docker_name = f"{name_prefix}_u{id}_{timestr}"
     cmd += f'--name "{child_docker_name}" '
 
-    with open("/proc/self/cgroup") as f:
-        for line in f:
-            if "/docker/" in line:
-                docker_id = line.strip()[-64:]
+    with open("/etc/hostname") as f:
+        hostname = f.read().strip()
+    with open("/proc/self/mountinfo") as f:
+        for part in f.read().split('/'):
+            if len(part) == 64 and part.startswith(hostname):
+                docker_id = part
                 break
+        else:
+            raise ValueError('Docker ID not found')
     prefix = f"/var/lib/docker/containers/{docker_id}/mounts/shm/"
 
     for flag_path, fn in flag_files.items():
