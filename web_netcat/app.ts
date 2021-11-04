@@ -6,8 +6,12 @@ const pty = require('node-pty');
 app.use(express.static('static'));
 
 app.ws('/shell', (ws, req) => {
-  const shell =
-      pty.spawn('/bin/nc', [process.env.nc_host, process.env.nc_port]);
+  var shell;
+  if (Number(process.env.nc_raw)) {
+    shell = pty.spawn('/bin/bash', ['-c', 'stty raw -echo; nc ' + process.env.nc_host + ' ' + process.env.nc_port]);
+  } else {
+    shell = pty.spawn('/bin/nc', [process.env.nc_host, process.env.nc_port]);
+  }
   shell.on('data', (data) => {
     ws.send(data);
   });

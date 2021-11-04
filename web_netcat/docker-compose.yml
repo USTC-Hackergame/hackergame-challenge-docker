@@ -1,4 +1,4 @@
-version: '2'
+version: '2.4'
 services:
   web:
     build: .
@@ -7,4 +7,6 @@ services:
     environment:
       - nc_host=${nc_host}
       - nc_port=${nc_port}
+      - nc_raw=${nc_raw}
     restart: always
+    init: true

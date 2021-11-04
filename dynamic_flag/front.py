@@ -9,6 +9,9 @@ import hashlib
 import atexit
 import subprocess
 from datetime import datetime
+import threading
+import select
+import sys
 
 tmp_path = "/dev/shm/hackergame"
 tmp_flag_path = "/dev/shm"
@@ -20,7 +23,7 @@ mem_limit = os.environ["hackergame_mem_limit"]
 flag_path = os.environ["hackergame_flag_path"]
 flag_rule = os.environ["hackergame_flag_rule"]
 challenge_docker_name = os.environ["hackergame_challenge_docker_name"]
-read_only = int(os.environ.get("hackergame_read_only", "1"))
+read_only = 0 if os.environ.get("hackergame_read_only") == "0" else 1
 
 with open("cert.pem") as f:
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
@@ -120,7 +123,10 @@ def cleanup():
             stderr=subprocess.DEVNULL,
         )
     for file in flag_files.values():
-        os.unlink(file)
+        try:
+            os.unlink(file)
+        except FileNotFoundError:
+            pass
 
 
 def create_docker(flag_files, id):
@@ -167,10 +173,19 @@ def run_docker(child_docker_id):
     subprocess.run(cmd, shell=True)
 
 
+def clean_on_socket_close():
+    p = select.poll()
+    p.register(sys.stdin, select.POLLHUP | select.POLLERR | select.POLLRDHUP)
+    p.poll()
+    cleanup()
+
+
 if __name__ == "__main__":
     child_docker_id = None
     flag_files = {}
     atexit.register(cleanup)
+    t = threading.Thread(target=clean_on_socket_close, daemon=True)
+    t.start()
 
     token, id = check_token()
     os.environ["hackergame_token"] = token
