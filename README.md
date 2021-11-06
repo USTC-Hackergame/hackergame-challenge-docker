@@ -2,21 +2,15 @@
 
 ## 快速入门
 
-### 配置证书
+### 配置密钥
 
-证书用于验证用户 Token。请确保这里的证书文件（cert.pem）与 [Hackergame 平台](https://github.com/ustclug/hackergame) 配置的证书相同，这样 Hackergame 平台为每个用户生成的 Token 才可以通过这里的用户验证。
+密钥用于验证用户 Token。请确保这里的公钥文件（`pubkey`）与 [Hackergame 平台](https://github.com/ustclug/hackergame) 配置的私钥相匹配，这样 Hackergame 平台为每个用户生成的 Token 才可以通过这里的用户验证。
 
-如果你仅仅想测试一下，可以使用 [dynamic_flag/cert.pem](dynamic_flag/cert.pem) 自带的证书，以及这个 Token：
+如果你仅仅想测试一下，可以使用 [dynamic_flag/pubkey](dynamic_flag/pubkey) 自带的公钥，以及这个 Token：
 
-`1:MEUCIQCjK1QcPFro86w3bKPb5zUZZd96ocp3EZDFcwLtJxNNDAIgEPk3Orw0mE+zHLQA7e31kSFupNtG9uepz2H4EqxlKWY=`
+`c7e810a06ac7f9c6d1a4cde75e8a04e7460dce44828267524f13095a318ada4bd97311513c00cadb5719b5f6e2be5d1e87233ca83b6f64b1f4b1cd9c6cd6ca0231`
 
-在生产环境中，请使用自己生成的证书，方法如下：
-
-生成私钥 `openssl ecparam -name secp256k1 -genkey -noout -out private.pem`
-
-生成证书 `openssl req -x509 -key private.pem -out cert.pem -days 365`
-
-然后将生成的 `cert.pem` 文件放在 [dynamic_flag/cert.pem](dynamic_flag/cert.pem)。
+在生产环境中，请运行 `generate_key.py` 自己生成密钥。
 
 ### 配置题目
 
@@ -76,14 +70,8 @@
 
 如果你的题目是一个一直运行的应用，例如 flask app，那么请自己进行 Token 的验证和动态 flag 生成。
 
-Token 的验证方法见 [dynamic_flag/front.py](dynamic_flag/front.py) 中的 `validate` 函数。由于 Token 是非对称签名，所以证书和验证代码完全可以公开。
-
-如果不需要进行连接限制，那么不验证 Token 的合法性也无妨。
-
-自己实现对用户的连接限制时，注意请按用户 id 限制，不要按 Token 限制，因为签名系统不保证每个 id 只有唯一的合法签名。
+Token 是一个 [libsodium 签名](https://doc.libsodium.org/public-key_cryptography/public-key_signatures#combined-mode)，每个用户确定性对应一个 Token。libsodium [在很多语言中都有库](https://doc.libsodium.org/bindings_for_other_languages)，Python 验证方法见 [dynamic_flag/front.py](dynamic_flag/front.py) 中的 `validate` 函数。由于 Token 是非对称签名，所以公钥和验证代码完全可以公开。
 
 ## 已知问题
-
-- 证书是否过期不会被检查
 
 - Windows 系统上可能无法正常使用，Linux 和 macOS 经测试没有问题
