@@ -129,6 +129,15 @@ def cleanup():
             pass
 
 
+def check_docker_image_exists(docker_image_name):
+    return subprocess.run(
+        f"docker inspect --type=image {docker_image_name}",
+        shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+
 def create_docker(flag_files, id):
     cmd = (
         f"docker create --init --rm -i --network none "
@@ -139,10 +148,22 @@ def create_docker(flag_files, id):
     if read_only:
         cmd += "--read-only "
 
+    # new version docker-compose uses "-" instead of "_" in the image name, so we try both
+    challenge_docker_name_checked = challenge_docker_name
     if challenge_docker_name.endswith("_challenge"):
         name_prefix = challenge_docker_name[:-10]
+        if not check_docker_image_exists(challenge_docker_name):
+            challenge_docker_name_checked = name_prefix + "-challenge"
+    elif challenge_docker_name.endswith("-challenge"):
+        name_prefix = challenge_docker_name[:-10]
+        if not check_docker_image_exists(challenge_docker_name):
+            challenge_docker_name_checked = name_prefix + "_challenge"
     else:
         name_prefix = challenge_docker_name
+
+    if not check_docker_image_exists(challenge_docker_name_checked):
+        print("Docker image does not exist, please contact admin")
+        exit(-1)
 
     timestr = datetime.now().strftime("%m%d_%H%M%S_%f")[:-3]
     child_docker_name = f"{name_prefix}_u{id}_{timestr}"
@@ -163,7 +184,7 @@ def create_docker(flag_files, id):
         flag_src_path = prefix + fn.split("/")[-1]
         cmd += f"-v {flag_src_path}:{flag_path}:ro "
 
-    cmd += challenge_docker_name
+    cmd += challenge_docker_name_checked
 
     return subprocess.check_output(cmd, shell=True).decode().strip()
 
