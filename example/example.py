@@ -4,3 +4,6 @@ if input("1+1=").strip() == "2":
     print(open("flag2").read())
 else:
     print("Wrong!")
+print("[DONE]")
+import time
+time.sleep(114514)
