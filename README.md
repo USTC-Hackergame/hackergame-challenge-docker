@@ -8,7 +8,7 @@
 
 如果你仅仅想测试一下，可以使用 [dynamic_flag/cert.pem](dynamic_flag/cert.pem) 自带的证书，以及这个 Token：
 
-`1:MEUCIQCjK1QcPFro86w3bKPb5zUZZd96ocp3EZDFcwLtJxNNDAIgEPk3Orw0mE+zHLQA7e31kSFupNtG9uepz2H4EqxlKWY=`
+`1:MEUCIQC24dB6B24/LDr2O+4cifbzOEFDbkXg3hJIqTXuuvpa1QIgbzMM/F0uUmYIudtM6qEDvOpEHbtTZjSjTWMcA5zhnos=`
 
 在生产环境中，请使用自己生成的证书，方法如下：
 
