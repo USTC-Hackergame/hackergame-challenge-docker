@@ -73,7 +73,9 @@ def try_login(id):
 
 def check_token():
     signal.alarm(token_timeout)
-    token = input("Please input your token: ").strip()
+    print("Please input your token: ")
+    with os.fdopen(sys.stdin.fileno(), 'rb', buffering=0, closefd=False) as unbuffered_stdin:
+        token = unbuffered_stdin.readline().decode().strip()
     id = validate(token)
     if not id:
         print("Invalid token")
