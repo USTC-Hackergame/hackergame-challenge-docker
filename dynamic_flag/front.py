@@ -1,5 +1,3 @@
-import base64
-import OpenSSL
 import os
 import time
 import fcntl
@@ -12,6 +10,9 @@ from datetime import datetime
 import threading
 import select
 import sys
+import pathlib
+import nacl.encoding
+import nacl.signing
 
 tmp_path = "/dev/shm/hackergame"
 tmp_flag_path = "/dev/shm"
@@ -24,17 +25,12 @@ flag_path = os.environ["hackergame_flag_path"]
 flag_rule = os.environ["hackergame_flag_rule"]
 challenge_docker_name = os.environ["hackergame_challenge_docker_name"]
 read_only = 0 if os.environ.get("hackergame_read_only") == "0" else 1
-
-with open("cert.pem") as f:
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
+pubkey = nacl.signing.VerifyKey(pathlib.Path('pubkey').read_text().strip(), encoder=nacl.encoding.HexEncoder)
 
 
 def validate(token):
     try:
-        id, sig = token.split(":", 1)
-        sig = base64.b64decode(sig, validate=True)
-        OpenSSL.crypto.verify(cert, sig, id.encode(), "sha256")
-        return id
+        return pubkey.verify(token.encode(), encoder=nacl.encoding.HexEncoder).decode()
     except Exception:
         return None
 
