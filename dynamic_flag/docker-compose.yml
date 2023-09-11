@@ -9,6 +9,10 @@ services:
     ipc: shareable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       - hackergame_conn_interval=${conn_interval}
       - hackergame_token_timeout=${token_timeout}
