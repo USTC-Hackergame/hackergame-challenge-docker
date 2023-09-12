@@ -3,10 +3,10 @@
     "@types/node": "^18.11.8",
     "express": "^4.18.2",
     "express-ws": "^5.0.2",
-    "node-pty": "^0.10.1",
-    "typescript": "^4.8.4",
+    "node-pty": "^1.0.0",
+    "typescript": "^5.2.2",
     "xterm": "^5.0.0",
-    "xterm-addon-attach": "^0.7.0",
-    "xterm-addon-fit": "^0.6.0"
+    "xterm-addon-attach": "^0.9.0",
+    "xterm-addon-fit": "^0.8.0"
   }
 }
