@@ -25,8 +25,21 @@ flag_rule = os.environ["hackergame_flag_rule"]
 challenge_docker_name = os.environ["hackergame_challenge_docker_name"]
 read_only = 0 if os.environ.get("hackergame_read_only") == "0" else 1
 
+# flag_suid sets whether set stricter permission requirements (0400 instead of 0444) to corresponding flag file
+flag_suid = os.environ.get("hackergame_flag_suid", "").split(",")
+# challenge_network sets whether the challenge container can access other networks. Default = no access
+challenge_network = os.environ.get("hackergame_challenge_network", "")
+# shm_exec sets /dev/shm no longer be noexec. Default = keep noexec
+shm_exec = 1 if os.environ.get("hackergame_shm_exec") == "1" else 0
+
 with open("cert.pem") as f:
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
+
+
+class Flag:
+    def __init__(self, flag, suid):
+        self.flag = flag
+        self.suid = suid
 
 
 def validate(token):
@@ -98,9 +111,15 @@ def generate_flags(token):
     if flag_path:
         flag = eval(flag_rule, functions, {"token": token})
         if isinstance(flag, tuple):
-            return dict(zip(flag_path.split(","), flag))
+            res = dict(zip(flag_path.split(","), flag))
         else:
-            return {flag_path: flag}
+            res = {flag_path: flag}
+        for path in res:
+            if path in flag_suid:
+                res[path] = Flag(flag=res[path], suid=True)
+            else:
+                res[path] = Flag(flag=res[path], suid=False)
+        return res
     else:
         return {}
 
@@ -109,9 +128,12 @@ def generate_flag_files(flags):
     flag_files = {}
     for flag_path, flag in flags.items():
         with tempfile.NamedTemporaryFile("w", delete=False, dir=tmp_flag_path) as f:
-            f.write(flag + "\n")
+            f.write(flag.flag + "\n")
             fn = f.name
-        os.chmod(fn, 0o444)
+        if flag.suid:
+            os.chmod(fn, 0o400)
+        else:
+            os.chmod(fn, 0o444)
         flag_files[flag_path] = fn
     return flag_files
 
@@ -141,14 +163,19 @@ def check_docker_image_exists(docker_image_name):
 
 
 def create_docker(flag_files, id):
+    network = "none"
+    if challenge_network:
+        network = challenge_network.split()[0]
     cmd = (
-        f"docker create --init --rm -i --network none "
+        f"docker create --init --rm -i --network {network} "
         f"--pids-limit {pids_limit} -m {mem_limit} --memory-swap -1 --cpus 1 "
         f"-e hackergame_token=$hackergame_token "
     )
 
     if read_only:
         cmd += "--read-only "
+    if shm_exec:
+        cmd += "--tmpfs /dev/shm:exec "
 
     # new version docker-compose uses "-" instead of "_" in the image name, so we try both
     challenge_docker_name_checked = challenge_docker_name

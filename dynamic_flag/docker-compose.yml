@@ -23,4 +23,7 @@ services:
       - hackergame_flag_rule=${flag_rule}
       - hackergame_challenge_docker_name=${challenge_docker_name}
       - hackergame_read_only=${read_only}
+      - hackergame_flag_suid=${flag_suid}
+      - hackergame_challenge_network=${challenge_network}
+      - hackergame_shm_exec=${shm_exec}
       - TZ=Asia/Shanghai
