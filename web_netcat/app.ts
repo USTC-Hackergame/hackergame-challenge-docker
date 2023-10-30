@@ -12,6 +12,11 @@ app.ws('/shell', (ws, req) => {
   } else {
     shell = pty.spawn('/bin/nc', [process.env.nc_host, process.env.nc_port]);
   }
+
+  var ping_interval = setInterval(() => {
+    ws.ping();
+  }, 15000);
+
   shell.on('data', (data) => {
     ws.send(data);
   });
@@ -22,7 +27,22 @@ app.ws('/shell', (ws, req) => {
     ws.close();
   });
   ws.on('close', () => {
+    clearInterval(ping_interval);
     shell.kill();
+  });
+
+  var timeout_killer = setTimeout(() => {
+    ws.terminate();
+    shell.kill();
+  }, 35000);
+
+  ws.on('pong', () => {
+    clearTimeout(timeout_killer);
+
+    timeout_killer = setTimeout(() => {
+      ws.terminate();
+      shell.kill();
+    }, 35000);
   });
 });
 
