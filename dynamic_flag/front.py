@@ -45,8 +45,9 @@ class Flag:
 def validate(token):
     try:
         id, sig = token.split(":", 1)
-        sig = base64.b64decode(sig, validate=True)
-        OpenSSL.crypto.verify(cert, sig, id.encode(), "sha256")
+        sigr = base64.urlsafe_b64decode(sig)
+        assert sig == base64.urlsafe_b64encode(sigr).decode()
+        OpenSSL.crypto.verify(cert, sigr, id.encode(), "sha256")
         return id
     except Exception:
         return None
