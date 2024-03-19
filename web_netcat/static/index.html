@@ -25,6 +25,16 @@
         letterSpacing: 0,
         fontFamily: 'monospace',
       });
+      term.attachCustomKeyEventHandler((e) => {
+        // Ctrl + Shift + C, to prevent browser from opening devtools
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 67) {
+          e.preventDefault();
+          const success = document.execCommand('copy');
+          if (!success) {
+            console.error('Failed to copy to clipboard');
+          }
+        }
+      });
       const fitAddon = new FitAddon.FitAddon();
       term.loadAddon(fitAddon);
       term.open(document.getElementById("terminal"));
