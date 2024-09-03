@@ -12,6 +12,8 @@ from datetime import datetime
 import threading
 import select
 import sys
+import random
+import math
 
 tmp_path = "/dev/shm/hackergame"
 tmp_flag_path = "/dev/shm"
@@ -31,6 +33,8 @@ flag_suid = os.environ.get("hackergame_flag_suid", "").split(",")
 challenge_network = os.environ.get("hackergame_challenge_network", "")
 # shm_exec sets /dev/shm no longer be noexec. Default = keep noexec
 shm_exec = 1 if os.environ.get("hackergame_shm_exec") == "1" else 0
+
+lxcfs_opts = '-v /var/lib/lxcfs/proc/cpuinfo:/proc/cpuinfo:ro -v /var/lib/lxcfs/proc/diskstats:/proc/diskstats:ro -v /var/lib/lxcfs/proc/meminfo:/proc/meminfo:ro -v /var/lib/lxcfs/proc/stat:/proc/stat:ro -v /var/lib/lxcfs/proc/swaps:/proc/swaps:ro -v /var/lib/lxcfs/proc/uptime:/proc/uptime:ro -v /var/lib/lxcfs/proc/slabinfo:/proc/slabinfo:ro -v /var/lib/lxcfs/sys/devices/system/cpu:/sys/devices/system/cpu:ro'
 
 with open("cert.pem") as f:
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
@@ -163,13 +167,17 @@ def check_docker_image_exists(docker_image_name):
 
 
 def create_docker(flag_files, id):
+    cpusets = [str(x) for x in os.sched_getaffinity(0)]
+    cpusets = random.sample(cpusets, min(len(cpusets), 3))
+    
     network = "none"
     if challenge_network:
         network = challenge_network.split()[0]
     cmd = (
         f"docker create --init --rm -i --network {network} "
-        f"--pids-limit {pids_limit} -m {mem_limit} --memory-swap -1 --cpus 1 "
+        f"--pids-limit {pids_limit} -m {mem_limit} --memory-swap -1 --cpus 1 --cpuset-cpus {','.join(cpusets)} "
         f"-e hackergame_token=$hackergame_token "
+        f"{lxcfs_opts} "
     )
 
     if read_only:
