@@ -34,7 +34,7 @@ challenge_network = os.environ.get("hackergame_challenge_network", "")
 # shm_exec sets /dev/shm no longer be noexec. Default = keep noexec
 shm_exec = 1 if os.environ.get("hackergame_shm_exec") == "1" else 0
 
-lxcfs_opts = '-v /var/lib/lxcfs/proc/cpuinfo:/proc/cpuinfo:rw -v /var/lib/lxcfs/proc/diskstats:/proc/diskstats:rw -v /var/lib/lxcfs/proc/meminfo:/proc/meminfo:rw -v /var/lib/lxcfs/proc/stat:/proc/stat:rw -v /var/lib/lxcfs/proc/swaps:/proc/swaps:rw -v /var/lib/lxcfs/proc/uptime:/proc/uptime:rw -v /var/lib/lxcfs/proc/slabinfo:/proc/slabinfo:rw -v /var/lib/lxcfs/sys/devices/system/cpu:/sys/devices/system/cpu:rw'
+lxcfs_opts = '-v /var/lib/lxcfs/proc/cpuinfo:/proc/cpuinfo:ro -v /var/lib/lxcfs/proc/diskstats:/proc/diskstats:ro -v /var/lib/lxcfs/proc/meminfo:/proc/meminfo:ro -v /var/lib/lxcfs/proc/stat:/proc/stat:ro -v /var/lib/lxcfs/proc/swaps:/proc/swaps:ro -v /var/lib/lxcfs/proc/uptime:/proc/uptime:ro -v /var/lib/lxcfs/proc/slabinfo:/proc/slabinfo:ro -v /var/lib/lxcfs/sys/devices/system/cpu:/sys/devices/system/cpu:ro'
 
 with open("cert.pem") as f:
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
