@@ -25,7 +25,24 @@ flag_path = os.environ["hackergame_flag_path"]
 flag_rule = os.environ["hackergame_flag_rule"]
 challenge_docker_name = os.environ["hackergame_challenge_docker_name"]
 read_only = 0 if os.environ.get("hackergame_read_only") == "0" else 1
+
+# flag_suid sets whether set stricter permission requirements (0400 instead of 0444) to corresponding flag file
+flag_suid = os.environ.get("hackergame_flag_suid", "").split(",")
+# challenge_network sets whether the challenge container can access other networks. Default = no access
+challenge_network = os.environ.get("hackergame_challenge_network", "")
+# shm_exec sets /dev/shm no longer be noexec. Default = keep noexec
+shm_exec = 1 if os.environ.get("hackergame_shm_exec") == "1" else 0
+# tmp_tmpfs sets whether to explicitly mount /tmp as tmpfs. Default = no
+tmp_tmpfs = 1 if os.environ.get("hackergame_tmp_tmpfs") == "1" else 0
+# extra_flag directly appends to "docker create ..."
+extra_flag = os.environ.get("hackergame_extra_flag", "")
 pubkey = nacl.signing.VerifyKey(pathlib.Path('pubkey').read_text().strip(), encoder=nacl.encoding.HexEncoder)
+
+
+class Flag:
+    def __init__(self, flag, suid):
+        self.flag = flag
+        self.suid = suid
 
 
 def validate(token):
@@ -69,7 +86,9 @@ def try_login(id):
 
 def check_token():
     signal.alarm(token_timeout)
-    token = input("Please input your token: ").strip()
+    print("Please input your token: ")
+    with os.fdopen(sys.stdin.fileno(), 'rb', buffering=0, closefd=False) as unbuffered_stdin:
+        token = unbuffered_stdin.readline().decode().strip()
     id = validate(token)
     if not id:
         print("Invalid token")
@@ -92,9 +111,15 @@ def generate_flags(token):
     if flag_path:
         flag = eval(flag_rule, functions, {"token": token})
         if isinstance(flag, tuple):
-            return dict(zip(flag_path.split(","), flag))
+            res = dict(zip(flag_path.split(","), flag))
         else:
-            return {flag_path: flag}
+            res = {flag_path: flag}
+        for path in res:
+            if path in flag_suid:
+                res[path] = Flag(flag=res[path], suid=True)
+            else:
+                res[path] = Flag(flag=res[path], suid=False)
+        return res
     else:
         return {}
 
@@ -103,9 +128,12 @@ def generate_flag_files(flags):
     flag_files = {}
     for flag_path, flag in flags.items():
         with tempfile.NamedTemporaryFile("w", delete=False, dir=tmp_flag_path) as f:
-            f.write(flag + "\n")
+            f.write(flag.flag + "\n")
             fn = f.name
-        os.chmod(fn, 0o444)
+        if flag.suid:
+            os.chmod(fn, 0o400)
+        else:
+            os.chmod(fn, 0o444)
         flag_files[flag_path] = fn
     return flag_files
 
@@ -125,20 +153,50 @@ def cleanup():
             pass
 
 
+def check_docker_image_exists(docker_image_name):
+    return subprocess.run(
+        f"docker inspect --type=image {docker_image_name}",
+        shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+
 def create_docker(flag_files, id):
+    network = "none"
+    if challenge_network:
+        network = challenge_network.split()[0]
     cmd = (
-        f"docker create --init --rm -i --network none "
-        f"--pids-limit {pids_limit} -m {mem_limit} --memory-swap -1 --cpus 1 "
+        f"docker create --init --rm -i --network {network} "
+        f"--pids-limit {pids_limit} -m {mem_limit} --memory-swap {mem_limit} --cpus 1 "
         f"-e hackergame_token=$hackergame_token "
     )
 
     if read_only:
         cmd += "--read-only "
+    if shm_exec:
+        cmd += "--tmpfs /dev/shm:exec "
+    if tmp_tmpfs:
+        cmd += "--tmpfs /tmp "
+    if extra_flag:
+        cmd += extra_flag + " "
 
+    # new version docker-compose uses "-" instead of "_" in the image name, so we try both
+    challenge_docker_name_checked = challenge_docker_name
     if challenge_docker_name.endswith("_challenge"):
         name_prefix = challenge_docker_name[:-10]
+        if not check_docker_image_exists(challenge_docker_name):
+            challenge_docker_name_checked = name_prefix + "-challenge"
+    elif challenge_docker_name.endswith("-challenge"):
+        name_prefix = challenge_docker_name[:-10]
+        if not check_docker_image_exists(challenge_docker_name):
+            challenge_docker_name_checked = name_prefix + "_challenge"
     else:
         name_prefix = challenge_docker_name
+
+    if not check_docker_image_exists(challenge_docker_name_checked):
+        print("Docker image does not exist, please contact admin")
+        exit(-1)
 
     timestr = datetime.now().strftime("%m%d_%H%M%S_%f")[:-3]
     child_docker_name = f"{name_prefix}_u{id}_{timestr}"
@@ -159,20 +217,55 @@ def create_docker(flag_files, id):
         flag_src_path = prefix + fn.split("/")[-1]
         cmd += f"-v {flag_src_path}:{flag_path}:ro "
 
-    cmd += challenge_docker_name
+    cmd += challenge_docker_name_checked
 
     return subprocess.check_output(cmd, shell=True).decode().strip()
 
 
+def print_exitcode(code: int):
+    print()
+    if code >= 0:
+        print(f"(Environment exited with return code {code})", file=sys.stderr)
+    else:
+        signal_number = -code
+        try:
+            signal_name = signal.Signals(signal_number).name
+            print(f"(Environment exited with signal {signal_name})", file=sys.stderr)
+        except ValueError:
+            print(f"(Environment exited with unknown signal number {signal_number})", file=sys.stderr)
+
+
 def run_docker(child_docker_id):
-    cmd = f"timeout -s 9 {challenge_timeout} docker start -i {child_docker_id}"
-    subprocess.run(cmd, shell=True)
+    # timeout command sends SIGKILL to docker-cli, and the container would be stopped
+    # in cleanup(). Please note that this command SHALL NOT BE RUN WITH Debian's dash!
+    # Otherwise, when client (player) & server's buffers are all full, dash would be
+    # BLOCKED when writing "Killed", and this would hang for a very long time!
+
+    p = subprocess.run([
+        "timeout", "-s", "9", str(challenge_timeout), "docker", "start", "-i", child_docker_id
+    ])
+    # As is mentioned above, outputting status SHALL NEVER block main thread...
+    t = threading.Thread(target=print_exitcode, args=(p.returncode,), daemon=True)
+    t.start()
+
+    # If users' network buffer is blocked, that not our fault...
+    # wait 1s, and just leave.
+    time.sleep(1)
 
 
 def clean_on_socket_close():
     p = select.poll()
     p.register(sys.stdin, select.POLLHUP | select.POLLERR | select.POLLRDHUP)
     p.poll()
+
+    # If the user closes the socket before `docker create`, it will cause `cleanup()`
+    # to prematurely delete the flag, resulting in a race condition, which causes the
+    # flag inside the challenge container to turn into a directory. Here, we ensure
+    # that `cleanup()` only occurs after `docker create` has completed.
+    while child_docker_id is None:
+        time.sleep(0.1)
+    time.sleep(1)
+
     cleanup()
 
 

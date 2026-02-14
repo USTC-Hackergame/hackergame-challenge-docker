@@ -1,6 +1,6 @@
-FROM node:latest
+FROM node:18
 RUN apt update && apt -y upgrade && \
-    apt install -y netcat && \
+    apt install --no-install-recommends -y netcat-traditional && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /srv
 COPY package-lock.json package.json ./

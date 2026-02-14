@@ -9,6 +9,10 @@ services:
     ipc: shareable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       - hackergame_conn_interval=${conn_interval}
       - hackergame_token_timeout=${token_timeout}
@@ -19,4 +23,10 @@ services:
       - hackergame_flag_rule=${flag_rule}
       - hackergame_challenge_docker_name=${challenge_docker_name}
       - hackergame_read_only=${read_only}
+      - hackergame_flag_suid=${flag_suid}
+      - hackergame_challenge_network=${challenge_network}
+      - hackergame_shm_exec=${shm_exec}
+      - hackergame_tmp_tmpfs=${tmp_tmpfs}
+      - hackergame_extra_flag=${extra_flag}
       - TZ=Asia/Shanghai
+      - DOCKER_DEFAULT_PLATFORM=linux/amd64
