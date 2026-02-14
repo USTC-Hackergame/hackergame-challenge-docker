@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:24
 RUN apt update && apt -y upgrade && \
     apt install --no-install-recommends -y netcat-traditional && \
     rm -rf /var/lib/apt/lists/*
