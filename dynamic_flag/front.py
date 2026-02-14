@@ -1,5 +1,3 @@
-import base64
-import OpenSSL
 import os
 import time
 import fcntl
@@ -12,6 +10,9 @@ from datetime import datetime
 import threading
 import select
 import sys
+import pathlib
+import nacl.encoding
+import nacl.signing
 
 tmp_path = "/dev/shm/hackergame"
 tmp_flag_path = "/dev/shm"
@@ -35,9 +36,7 @@ shm_exec = 1 if os.environ.get("hackergame_shm_exec") == "1" else 0
 tmp_tmpfs = 1 if os.environ.get("hackergame_tmp_tmpfs") == "1" else 0
 # extra_flag directly appends to "docker create ..."
 extra_flag = os.environ.get("hackergame_extra_flag", "")
-
-with open("cert.pem") as f:
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
+pubkey = nacl.signing.VerifyKey(pathlib.Path('pubkey').read_text().strip(), encoder=nacl.encoding.HexEncoder)
 
 
 class Flag:
@@ -48,10 +47,7 @@ class Flag:
 
 def validate(token):
     try:
-        id, sig = token.split(":", 1)
-        sig = base64.b64decode(sig, validate=True)
-        OpenSSL.crypto.verify(cert, sig, id.encode(), "sha256")
-        return id
+        return pubkey.verify(token.encode(), encoder=nacl.encoding.HexEncoder).decode()
     except Exception:
         return None
 
